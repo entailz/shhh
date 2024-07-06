@@ -1,5 +1,8 @@
 # shhh 
 _simple tool to for adding shadows to an image._
+
+![mew](https://github.com/entailz/shhh/blob/main/assets/shhh_after.png?raw=true)
+
 ##### Default behavior:
 
 pipe an image to shhh and receive the image via stdout. 
