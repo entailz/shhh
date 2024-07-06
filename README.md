@@ -1,13 +1,13 @@
 # shhh 
-_simple tool to for adding shadows to an image._
+_simple tool to for adding shadows and border radius to an image._
 
 ![mew](https://github.com/entailz/shhh/blob/main/assets/shhh_after.png?raw=true)
 
 ##### Default behavior:
 
-pipe an image to shhh and receive the image via stdout. 
+pipe an image to shhh and receive the image data via stdout. 
 
-specify --input & --output in order to override this behavior.
+specify --input and/or --output in order to override this behavior.
 
 ##### __Usage:__
 
