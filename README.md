@@ -1,5 +1,5 @@
-# shhh - another simple shadow adder written in rust.
------
+# shhh 
+_simple tool to for adding shadows to an image._
 ##### Default behavior:
 
 pipe an image to shhh and receive the image via stdout. 
