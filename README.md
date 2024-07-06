@@ -1,7 +1,7 @@
 # shhh 
 _simple tool to for adding shadows and border radius to an image._
 
-![mew](https://github.com/entailz/shhh/blob/main/assets/shhh_after.png?raw=true)
+![mew](https://github.com/entailz/shhh/blob/main/assets/shhh_aft.png?raw=true)
 
 ##### Default behavior:
 
