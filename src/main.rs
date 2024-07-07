@@ -56,7 +56,7 @@ fn main() {
         .map(|s| u8::from_str(s).unwrap_or(128))
         .unwrap_or(128);
     let spread = matches.value_of("spread")
-        .map(|s| i32::from_str(s).unwrap_or(10))
+        .map(|s| u32::from_str(s).unwrap_or(10))
         .unwrap_or(10);
 
     let input_data = if let Some(input_path) = matches.value_of("input") {
@@ -138,7 +138,7 @@ fn add_rounded_drop_shadow(
     offset_x: i32,
     offset_y: i32,
     blur_radius: u32,
-    spread: i32,
+    spread: u32,
     shadow_alpha: u8,
 ) -> Result<DynamicImage, Box<dyn std::error::Error>> {
     let (width, height) = rounded_img.dimensions();
@@ -200,34 +200,22 @@ fn round_corners(img: &DynamicImage, radius: u32) -> DynamicImage {
     DynamicImage::ImageRgba8(rounded)
 }
 
-fn create_shadow(img: &DynamicImage, blur_radius: u32, spread: i32, shadow_alpha: u8) -> DynamicImage {
+fn create_shadow(img: &DynamicImage, blur_radius: u32, spread: u32, shadow_alpha: u8) -> DynamicImage {
     let (width, height) = img.dimensions();
-    let new_width = (width as i32 + spread.abs() * 2 + blur_radius as i32 * 2) as u32;
-    let new_height = (height as i32 + spread.abs() * 2 + blur_radius as i32 * 2) as u32;
+    let new_width = width + spread * 2;
+    let new_height = height + spread * 2;
     let mut shadow = ImageBuffer::new(new_width, new_height);
 
-    let spread_img = if spread > 0 {
-        image::imageops::resize(img, width + spread as u32 * 2, height + spread as u32 * 2, image::imageops::FilterType::Nearest)
-    } else if spread < 0 {
-        image::imageops::resize(img, (width as i32 + spread * 2).max(1) as u32, (height as i32 + spread * 2).max(1) as u32, image::imageops::FilterType::Nearest)
-    } else {
-        img.to_rgba8()
-    };
+    image::imageops::overlay(&mut shadow, &img.to_rgba8(), spread.into(), spread.into());
 
-    let offset = (spread.abs() + blur_radius as i32) as u32;
-    image::imageops::overlay(&mut shadow, &spread_img, offset.into(), offset.into());
-
-    for (x, y, pixel) in shadow.enumerate_pixels_mut() {
+    for (_, _, pixel) in shadow.enumerate_pixels_mut() {
         let alpha = pixel[3] as f32 / 255.0;
-        let distance_to_edge = ((x as i32 - new_width as i32 / 2).abs().min((y as i32 - new_height as i32 / 2).abs()) as f32) / (new_width.min(new_height) as f32 / 2.0);
-        let fade_factor = (1.0 - distance_to_edge).powi(2);
-        let new_alpha = alpha * shadow_alpha as f32 * fade_factor;
+        let new_alpha = alpha * shadow_alpha as f32;
         pixel[0] = 0;
         pixel[1] = 0;
         pixel[2] = 0;
         pixel[3] = new_alpha as u8;
     }
 
-    let blurred = image::imageops::blur(&shadow, blur_radius as f32 * 2.0);
-    DynamicImage::ImageRgba8(blurred)
+    DynamicImage::ImageRgba8(image::imageops::blur(&shadow, blur_radius as f32))
 }
