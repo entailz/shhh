@@ -12,12 +12,12 @@ specify --input and/or --output in order to override this behavior.
 ##### __Usage:__
 
 ```bash
-grim -g"$(slurp)" - | shhh --offset=4,4 --radius=10 --spread_radius=10 --alpha=40 > image.png
+grim -g"$(slurp)" - | shhh > image.png
 ```
 
 _alternatively_, replace the image out with your clipboard of choice, like so:
 
 ```bash
-grim -g"$(slurp)" - | shhh --offset=-60,0 --radius=20 --spread_radius=20 --alpha=60 | wl-copy --type image/png
+grim -g"$(slurp)" - | shhh -e -20,-20 -s 20 -a 120| wl-copy --type image/png
 ```
 

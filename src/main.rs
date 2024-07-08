@@ -34,7 +34,7 @@ fn main() {
                 .long("offset")
                 .short("e")
                 .takes_value(true)
-                .default_value("-15,-15")
+                .default_value("-20,-20")
                 .help("Shadow offset in format x,y"),
         )
         .arg(
@@ -42,7 +42,7 @@ fn main() {
                 .long("alpha")
                 .short("a")
                 .takes_value(true)
-                .default_value("40")
+                .default_value("150")
                 .help("Shadow alpha (0-255)"),
         )
         .arg(
@@ -50,7 +50,7 @@ fn main() {
                 .long("spread")
                 .short("s")
                 .takes_value(true)
-                .default_value("27")
+                .default_value("22")
                 .help("Shadow spread distance"),
         )
         .get_matches();
@@ -183,12 +183,28 @@ fn add_rounded_drop_shadow(
 
     let shadow = create_shadow(rounded_img, blur_radius, spread, shadow_alpha);
 
-    let shadow_x = (padding as i32 + offset_x) as i64;
-    let shadow_y = (padding as i32 + offset_y) as i64;
+    let shadow_x = if offset_x >= 0 {
+        padding as i64
+    } else {
+        (padding as i32 + offset_x) as i64
+    };
+    let shadow_y = if offset_y >= 0 {
+        padding as i64
+    } else {
+        (padding as i32 + offset_y) as i64
+    };
     image::imageops::overlay(&mut output, &shadow, shadow_x, shadow_y);
 
-    let image_x = (padding as i32 + offset_x.abs()) as i64;
-    let image_y = (padding as i32 + offset_y.abs()) as i64;
+    let image_x = if offset_x >= 0 {
+        (padding as i32 + offset_x) as i64
+    } else {
+        padding as i64
+    };
+    let image_y = if offset_y >= 0 {
+        (padding as i32 + offset_y) as i64
+    } else {
+        padding as i64
+    };
     image::imageops::overlay(&mut output, rounded_img, image_x, image_y);
 
     Ok(DynamicImage::ImageRgba8(output))
@@ -241,7 +257,7 @@ fn create_shadow(
 ) -> DynamicImage {
     let (width, height) = img.dimensions();
 
-    let padding = spread + blur_radius * 2; // Extra padding for blur
+    let padding = spread + blur_radius * 2;
     let new_width = width + padding * 2;
     let new_height = height + padding * 2;
     let mut shadow = ImageBuffer::new(new_width, new_height);
@@ -259,5 +275,24 @@ fn create_shadow(
 
     let adjusted_blur_radius = blur_radius + (spread as f32 / 2.0) as u32;
 
-    DynamicImage::ImageRgba8(image::imageops::blur(&shadow, adjusted_blur_radius as f32))
+    let blurred = image::imageops::blur(&shadow, adjusted_blur_radius as f32);
+
+    let mut cleaned = ImageBuffer::new(new_width, new_height);
+    for (x, y, pixel) in blurred.enumerate_pixels() {
+        if pixel[3] > 0 {
+            let factor = (pixel[3] as f32 / 255.0).powf(0.5); // Adjust this power for softer/harder edges
+            cleaned.put_pixel(
+                x,
+                y,
+                Rgba([
+                    (pixel[0] as f32 * factor) as u8,
+                    (pixel[1] as f32 * factor) as u8,
+                    (pixel[2] as f32 * factor) as u8,
+                    (pixel[3] as f32 * factor) as u8,
+                ]),
+            );
+        }
+    }
+
+    DynamicImage::ImageRgba8(cleaned)
 }
