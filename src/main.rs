@@ -26,7 +26,7 @@ fn main() {
                 .long("radius")
                 .short("r")
                 .takes_value(true)
-                .default_value("7")
+                .default_value("8")
                 .help("Corner radius for rounding"),
         )
         .arg(
@@ -50,10 +50,18 @@ fn main() {
                 .long("spread")
                 .short("s")
                 .takes_value(true)
-                .default_value("22")
+                .default_value("26")
                 .help("Shadow spread distance"),
         )
+        .arg(
+            Arg::with_name("verbose")
+                .long("verbose")
+                .short("v")
+                .help("Enable verbose output"),
+        )
         .get_matches();
+
+    let verbose = matches.is_present("verbose");
 
     let corner_radius = matches
         .value_of("corner_radius")
@@ -92,7 +100,9 @@ fn main() {
                 std::process::exit(1);
             }
             Ok(n) => {
-                eprintln!("Debug: Read {} bytes from stdin", n);
+                if verbose {
+                    eprintln!("Debug: Read {} bytes from stdin", n);
+                }
                 buffer
             }
             Err(e) => {
@@ -102,7 +112,9 @@ fn main() {
         }
     };
 
-    eprintln!("Debug: Input data size: {} bytes", input_data.len());
+    if verbose {
+        eprintln!("Debug: Input data size: {} bytes", input_data.len());
+    }
 
     let img = match Reader::new(std::io::Cursor::new(&input_data)).with_guessed_format() {
         Ok(reader) => reader,
@@ -112,7 +124,9 @@ fn main() {
         }
     };
 
-    eprintln!("Debug: Guessed image format: {:?}", img.format());
+    if verbose {
+        eprintln!("Debug: Guessed image format: {:?}", img.format());
+    }
 
     let img = match img.decode() {
         Ok(img) => img,
@@ -126,7 +140,9 @@ fn main() {
         }
     };
 
-    eprintln!("Debug: Image successfully decoded");
+    if verbose {
+        eprintln!("Debug: Image successfully decoded");
+    }
 
     let rounded_img = round_corners(&img, corner_radius);
 
