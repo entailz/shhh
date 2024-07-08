@@ -1,61 +1,84 @@
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba, ImageError};
-use std::str::FromStr;
-use std::io::{self, Read, Write};
 use clap::{App, Arg};
-use png::{ColorType, Encoder};
 use image::io::Reader;
+use image::{DynamicImage, GenericImageView, ImageBuffer, ImageError, Rgba};
+use png::{ColorType, Encoder};
+use std::io::{self, Read, Write};
+use std::str::FromStr;
 
 fn main() {
     let matches = App::new("Image Rounder and Shadow Adder")
-        .arg(Arg::with_name("input")
-            .long("input")
-            .short("i")
-            .takes_value(true)
-            .help("Input image file (default: read from stdin)"))
-        .arg(Arg::with_name("output")
-            .long("output")
-            .short("o")
-            .takes_value(true)
-            .help("Output image file (default: write to stdout)"))
-        .arg(Arg::with_name("corner_radius")
-            .long("radius")
-            .short("r")
-            .takes_value(true)
-            .help("Corner radius for rounding"))
-        .arg(Arg::with_name("offset")
-            .long("offset")
-            .short("e")
-            .takes_value(true)
-            .help("Shadow offset in format x,y"))
-        .arg(Arg::with_name("alpha")
-            .long("alpha")
-            .short("a")
-            .takes_value(true)
-            .help("Shadow alpha (0-255)"))
-        .arg(Arg::with_name("spread")
-            .long("spread")
-            .short("s")
-            .takes_value(true)
-            .help("Shadow spread distance"))
+        .arg(
+            Arg::with_name("input")
+                .long("input")
+                .short("i")
+                .takes_value(true)
+                .help("Input image file (default: read from stdin)"),
+        )
+        .arg(
+            Arg::with_name("output")
+                .long("output")
+                .short("o")
+                .takes_value(true)
+                .help("Output image file (default: write to stdout)"),
+        )
+        .arg(
+            Arg::with_name("corner_radius")
+                .long("radius")
+                .short("r")
+                .takes_value(true)
+                .default_value("7")
+                .help("Corner radius for rounding"),
+        )
+        .arg(
+            Arg::with_name("offset")
+                .long("offset")
+                .short("e")
+                .takes_value(true)
+                .default_value("-15,-15")
+                .help("Shadow offset in format x,y"),
+        )
+        .arg(
+            Arg::with_name("alpha")
+                .long("alpha")
+                .short("a")
+                .takes_value(true)
+                .default_value("40")
+                .help("Shadow alpha (0-255)"),
+        )
+        .arg(
+            Arg::with_name("spread")
+                .long("spread")
+                .short("s")
+                .takes_value(true)
+                .default_value("27")
+                .help("Shadow spread distance"),
+        )
         .get_matches();
 
-    let corner_radius = matches.value_of("corner_radius")
+    let corner_radius = matches
+        .value_of("corner_radius")
         .map(|s| u32::from_str(s).unwrap_or(0))
         .unwrap_or(0);
-    let offset = matches.value_of("offset")
+    let offset = matches
+        .value_of("offset")
         .map(|s| {
             let parts: Vec<&str> = s.split(',').collect();
             if parts.len() == 2 {
-                (i32::from_str(parts[0]).unwrap_or(0), i32::from_str(parts[1]).unwrap_or(0))
+                (
+                    i32::from_str(parts[0]).unwrap_or(0),
+                    i32::from_str(parts[1]).unwrap_or(0),
+                )
             } else {
                 (0, 0)
             }
         })
         .unwrap_or((0, 0));
-    let shadow_alpha = matches.value_of("alpha")
+    let shadow_alpha = matches
+        .value_of("alpha")
         .map(|s| u8::from_str(s).unwrap_or(128))
         .unwrap_or(128);
-    let spread = matches.value_of("spread")
+    let spread = matches
+        .value_of("spread")
         .map(|s| u32::from_str(s).unwrap_or(10))
         .unwrap_or(10);
 
@@ -81,14 +104,13 @@ fn main() {
 
     eprintln!("Debug: Input data size: {} bytes", input_data.len());
 
-    let img = match Reader::new(std::io::Cursor::new(&input_data))
-        .with_guessed_format() {
-            Ok(reader) => reader,
-            Err(e) => {
-                eprintln!("Failed to guess image format: {}", e);
-                std::process::exit(1);
-            }
-        };
+    let img = match Reader::new(std::io::Cursor::new(&input_data)).with_guessed_format() {
+        Ok(reader) => reader,
+        Err(e) => {
+            eprintln!("Failed to guess image format: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     eprintln!("Debug: Guessed image format: {:?}", img.format());
 
@@ -108,15 +130,20 @@ fn main() {
 
     let rounded_img = round_corners(&img, corner_radius);
 
-    let result = add_rounded_drop_shadow(&rounded_img, offset.0, offset.1, 10, spread, shadow_alpha)
-    .unwrap_or_else(|e| {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    });
+    let result = add_rounded_drop_shadow(&rounded_img, offset.0, offset.1, 5, spread, shadow_alpha)
+        .unwrap_or_else(|e| {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        });
 
- if let Some(output_path) = matches.value_of("output") {
-        result.save(output_path).expect("Failed to save output file");
-        eprintln!("Image with rounded corners and drop shadow saved as: {}", output_path);
+    if let Some(output_path) = matches.value_of("output") {
+        result
+            .save(output_path)
+            .expect("Failed to save output file");
+        eprintln!(
+            "Image with rounded corners and drop shadow saved as: {}",
+            output_path
+        );
     } else {
         let rgba_image = result.to_rgba8();
         let (width, height) = rgba_image.dimensions();
@@ -126,9 +153,14 @@ fn main() {
             encoder.set_color(ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
             let mut writer = encoder.write_header().expect("Failed to write PNG header");
-            writer.write_image_data(rgba_image.as_raw()).expect("Failed to write PNG data");
+            writer
+                .write_image_data(rgba_image.as_raw())
+                .expect("Failed to write PNG data");
         }
-        io::stdout().lock().write_all(&png_data).expect("Failed to write to stdout");
+        io::stdout()
+            .lock()
+            .write_all(&png_data)
+            .expect("Failed to write to stdout");
         io::stdout().flush().expect("Failed to flush stdout");
     }
 }
@@ -143,22 +175,21 @@ fn add_rounded_drop_shadow(
 ) -> Result<DynamicImage, Box<dyn std::error::Error>> {
     let (width, height) = rounded_img.dimensions();
 
-    let total_width = width as i32 + offset_x.abs() + spread as i32 * 2;
-    let total_height = height as i32 + offset_y.abs() + spread as i32 * 2;
+    let padding = spread + blur_radius * 2;
+    let total_width = width as i32 + offset_x.abs() + padding as i32 * 2;
+    let total_height = height as i32 + offset_y.abs() + padding as i32 * 2;
 
     let mut output = ImageBuffer::new(total_width as u32, total_height as u32);
 
     let shadow = create_shadow(rounded_img, blur_radius, spread, shadow_alpha);
 
-    let shadow_x = if offset_x < 0 { 0 } else { offset_x };
-    let shadow_y = if offset_y < 0 { 0 } else { offset_y };
+    let shadow_x = (padding as i32 + offset_x) as i64;
+    let shadow_y = (padding as i32 + offset_y) as i64;
+    image::imageops::overlay(&mut output, &shadow, shadow_x, shadow_y);
 
-    image::imageops::overlay(&mut output, &shadow, shadow_x as i64, shadow_y as i64);
-
-    let image_x = if offset_x < 0 { offset_x.abs() } else { 0 };
-    let image_y = if offset_y < 0 { offset_y.abs() } else { 0 };
-
-    image::imageops::overlay(&mut output, rounded_img, image_x as i64, image_y as i64);
+    let image_x = (padding as i32 + offset_x.abs()) as i64;
+    let image_y = (padding as i32 + offset_y.abs()) as i64;
+    image::imageops::overlay(&mut output, rounded_img, image_x, image_y);
 
     Ok(DynamicImage::ImageRgba8(output))
 }
@@ -170,19 +201,17 @@ fn round_corners(img: &DynamicImage, radius: u32) -> DynamicImage {
 
     for (x, y, pixel) in img.to_rgba8().enumerate_pixels() {
         let (dx, dy) = if x < radius as u32 && y < radius as u32 {
-
             (radius - x as f32, radius - y as f32)
         } else if x >= width - radius as u32 && y < radius as u32 {
-
             (x as f32 - (width as f32 - radius - 1.0), radius - y as f32)
         } else if x < radius as u32 && y >= height - radius as u32 {
-
             (radius - x as f32, y as f32 - (height as f32 - radius - 1.0))
         } else if x >= width - radius as u32 && y >= height - radius as u32 {
-
-            (x as f32 - (width as f32 - radius - 1.0), y as f32 - (height as f32 - radius - 1.0))
+            (
+                x as f32 - (width as f32 - radius - 1.0),
+                y as f32 - (height as f32 - radius - 1.0),
+            )
         } else {
-
             rounded.put_pixel(x, y, *pixel);
             continue;
         };
@@ -193,20 +222,31 @@ fn round_corners(img: &DynamicImage, radius: u32) -> DynamicImage {
             rounded.put_pixel(x, y, *pixel);
         } else {
             let alpha = ((radius + 1.0 - distance).max(0.0) * 255.0) as u8;
-            rounded.put_pixel(x, y, Rgba([pixel[0], pixel[1], pixel[2], alpha.min(pixel[3])]));
+            rounded.put_pixel(
+                x,
+                y,
+                Rgba([pixel[0], pixel[1], pixel[2], alpha.min(pixel[3])]),
+            );
         }
     }
 
     DynamicImage::ImageRgba8(rounded)
 }
 
-fn create_shadow(img: &DynamicImage, blur_radius: u32, spread: u32, shadow_alpha: u8) -> DynamicImage {
+fn create_shadow(
+    img: &DynamicImage,
+    blur_radius: u32,
+    spread: u32,
+    shadow_alpha: u8,
+) -> DynamicImage {
     let (width, height) = img.dimensions();
-    let new_width = width + spread * 2;
-    let new_height = height + spread * 2;
+
+    let padding = spread + blur_radius * 2; // Extra padding for blur
+    let new_width = width + padding * 2;
+    let new_height = height + padding * 2;
     let mut shadow = ImageBuffer::new(new_width, new_height);
 
-    image::imageops::overlay(&mut shadow, &img.to_rgba8(), spread.into(), spread.into());
+    image::imageops::overlay(&mut shadow, &img.to_rgba8(), padding.into(), padding.into());
 
     for (_, _, pixel) in shadow.enumerate_pixels_mut() {
         let alpha = pixel[3] as f32 / 255.0;
@@ -217,5 +257,7 @@ fn create_shadow(img: &DynamicImage, blur_radius: u32, spread: u32, shadow_alpha
         pixel[3] = new_alpha as u8;
     }
 
-    DynamicImage::ImageRgba8(image::imageops::blur(&shadow, blur_radius as f32))
+    let adjusted_blur_radius = blur_radius + (spread as f32 / 2.0) as u32;
+
+    DynamicImage::ImageRgba8(image::imageops::blur(&shadow, adjusted_blur_radius as f32))
 }
