@@ -65,11 +65,10 @@ fn main() {
 
     let corner_radius = matches
         .value_of("corner_radius")
-        .map(|s| u32::from_str(s).unwrap_or(0))
-        .unwrap_or(0);
+        .map_or(0, |s| u32::from_str(s).unwrap_or(0));
     let offset = matches
         .value_of("offset")
-        .map(|s| {
+        .map_or((0, 0), |s| {
             let parts: Vec<&str> = s.split(',').collect();
             if parts.len() == 2 {
                 (
@@ -79,16 +78,13 @@ fn main() {
             } else {
                 (0, 0)
             }
-        })
-        .unwrap_or((0, 0));
+        });
     let shadow_alpha = matches
         .value_of("alpha")
-        .map(|s| u8::from_str(s).unwrap_or(128))
-        .unwrap_or(128);
+        .map_or(128, |s| u8::from_str(s).unwrap_or(128));
     let spread = matches
         .value_of("spread")
-        .map(|s| u32::from_str(s).unwrap_or(10))
-        .unwrap_or(10);
+        .map_or(10, |s| u32::from_str(s).unwrap_or(10));
 
     let input_data = if let Some(input_path) = matches.value_of("input") {
         std::fs::read(input_path).expect("Failed to read input file")
@@ -101,12 +97,12 @@ fn main() {
             }
             Ok(n) => {
                 if verbose {
-                    eprintln!("Debug: Read {} bytes from stdin", n);
+                    eprintln!("Debug: Read {n} bytes from stdin");
                 }
                 buffer
             }
             Err(e) => {
-                eprintln!("Error reading from stdin: {}", e);
+                eprintln!("Error reading from stdin: {e}");
                 std::process::exit(1);
             }
         }
@@ -119,7 +115,7 @@ fn main() {
     let img = match Reader::new(std::io::Cursor::new(&input_data)).with_guessed_format() {
         Ok(reader) => reader,
         Err(e) => {
-            eprintln!("Failed to guess image format: {}", e);
+            eprintln!("Failed to guess image format: {e}");
             std::process::exit(1);
         }
     };
@@ -132,9 +128,9 @@ fn main() {
         Ok(img) => img,
         Err(e) => {
             match e {
-                ImageError::IoError(io_err) => eprintln!("IO Error: {}", io_err),
-                ImageError::Unsupported(msg) => eprintln!("Unsupported format: {}", msg),
-                _ => eprintln!("Unknown error: {}", e),
+                ImageError::IoError(io_err) => eprintln!("IO Error: {io_err}"),
+                ImageError::Unsupported(msg) => eprintln!("Unsupported format: {msg}"),
+                _ => eprintln!("Unknown error: {e}"),
             }
             std::process::exit(1);
         }
@@ -148,7 +144,7 @@ fn main() {
 
     let result = add_rounded_drop_shadow(&rounded_img, offset.0, offset.1, 5, spread, shadow_alpha)
         .unwrap_or_else(|e| {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             std::process::exit(1);
         });
 
@@ -157,8 +153,7 @@ fn main() {
             .save(output_path)
             .expect("Failed to save output file");
         eprintln!(
-            "Image with rounded corners and drop shadow saved as: {}",
-            output_path
+            "Image with rounded corners and drop shadow saved as: {output_path}"
         );
     } else {
         let rgba_image = result.to_rgba8();
@@ -200,26 +195,26 @@ fn add_rounded_drop_shadow(
     let shadow = create_shadow(rounded_img, blur_radius, spread, shadow_alpha);
 
     let shadow_x = if offset_x >= 0 {
-        padding as i64
+        i64::from(padding)
     } else {
-        (padding as i32 + offset_x) as i64
+        i64::from(padding as i32 + offset_x)
     };
     let shadow_y = if offset_y >= 0 {
-        padding as i64
+        i64::from(padding)
     } else {
-        (padding as i32 + offset_y) as i64
+        i64::from(padding as i32 + offset_y)
     };
     image::imageops::overlay(&mut output, &shadow, shadow_x, shadow_y);
 
     let image_x = if offset_x >= 0 {
-        (padding as i32 + offset_x) as i64
+        i64::from(padding as i32 + offset_x)
     } else {
-        padding as i64
+        i64::from(padding)
     };
     let image_y = if offset_y >= 0 {
-        (padding as i32 + offset_y) as i64
+        i64::from(padding as i32 + offset_y)
     } else {
-        padding as i64
+        i64::from(padding)
     };
     image::imageops::overlay(&mut output, rounded_img, image_x, image_y);
 
@@ -281,8 +276,8 @@ fn create_shadow(
     image::imageops::overlay(&mut shadow, &img.to_rgba8(), padding.into(), padding.into());
 
     for (_, _, pixel) in shadow.enumerate_pixels_mut() {
-        let alpha = pixel[3] as f32 / 255.0;
-        let new_alpha = alpha * shadow_alpha as f32;
+        let alpha = f32::from(pixel[3]) / 255.0;
+        let new_alpha = alpha * f32::from(shadow_alpha);
         pixel[0] = 0;
         pixel[1] = 0;
         pixel[2] = 0;
@@ -296,15 +291,15 @@ fn create_shadow(
     let mut cleaned = ImageBuffer::new(new_width, new_height);
     for (x, y, pixel) in blurred.enumerate_pixels() {
         if pixel[3] > 0 {
-            let factor = (pixel[3] as f32 / 255.0).powf(0.5); // Adjust this power for softer/harder edges
+            let factor = (f32::from(pixel[3]) / 255.0).powf(0.5); // Adjust this power for softer/harder edges
             cleaned.put_pixel(
                 x,
                 y,
                 Rgba([
-                    (pixel[0] as f32 * factor) as u8,
-                    (pixel[1] as f32 * factor) as u8,
-                    (pixel[2] as f32 * factor) as u8,
-                    (pixel[3] as f32 * factor) as u8,
+                    (f32::from(pixel[0]) * factor) as u8,
+                    (f32::from(pixel[1]) * factor) as u8,
+                    (f32::from(pixel[2]) * factor) as u8,
+                    (f32::from(pixel[3]) * factor) as u8,
                 ]),
             );
         }
